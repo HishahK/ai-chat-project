@@ -1,4 +1,4 @@
-# AI Agent with "Computer Use" in a Virtual OS
+# Connecting Web-based Chat to an AI Agent in a Virtual OS
 
 This project demonstrates how to connect a simple web-based chat interface on a host machine (Windows) to a powerful AI agent running in a completely separate, isolated virtual machine (Ubuntu on VirtualBox).
 
