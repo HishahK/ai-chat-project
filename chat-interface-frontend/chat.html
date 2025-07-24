@@ -1,0 +1,145 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Chat</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.js"></script>
+    <style>
+        /* Custom styles for chat bubbles for a cleaner look */
+        .chat-bubble {
+            max-width: 75%;
+            padding: 10px 15px;
+            border-radius: 20px;
+            word-wrap: break-word;
+        }
+        .user-bubble {
+            background-color: #3b82f6; /* blue-500 */
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+        .agent-bubble {
+            background-color: #e5e7eb; /* gray-200 */
+            color: #1f2937; /* gray-800 */
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <div id="main-container" class="flex flex-col h-screen max-w-2xl mx-auto bg-white shadow-lg">
+        
+        
+        <header class="bg-blue-600 text-white p-4 text-center shadow-md">
+            <h1 class="text-2xl font-bold">Chat with AI Agent</h1>
+            <p id="status" class="text-sm text-blue-200">Connecting...</p>
+        </header>
+
+        
+        <main id="chat-window" class="flex-1 p-6 overflow-y-auto flex flex-col space-y-4">
+            
+            <div class="chat-bubble agent-bubble">
+                Hello! I am your AI Agent. Try saying "hi" or ask for "help".
+            </div>
+        </main>
+
+        
+        <footer class="p-4 bg-gray-50 border-t border-gray-200">
+            <form id="message-form" class="flex items-center space-x-3">
+                <input 
+                    id="message-input" 
+                    type="text" 
+                    placeholder="Type your message here..." 
+                    autocomplete="off"
+                    class="flex-1 p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                />
+                <button 
+                    type="submit" 
+                    class="bg-blue-600 text-white rounded-full p-3 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition disabled:bg-gray-400"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+            </form>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // This URL points to the AI agent's WebSocket server.
+            // If running the agent in a VM with port forwarding (e.g., host 8080 -> guest 5000),
+            // you would change this to 'http://localhost:8080'.
+            const agentUrl = 'http://localhost:5000';
+
+            
+            const chatWindow = document.getElementById('chat-window');
+            const messageForm = document.getElementById('message-form');
+            const messageInput = document.getElementById('message-input');
+            const statusDisplay = document.getElementById('status');
+            const submitButton = messageForm.querySelector('button');
+
+            //WebSocket Connection Initialization
+            const socket = io(agentUrl);
+
+            //WebSocket Event Listeners
+            socket.on('connect', () => {
+                console.log('Successfully connected to the AI agent server.');
+                statusDisplay.textContent = 'Connected';
+                statusDisplay.className = 'text-sm text-green-300';
+                submitButton.disabled = false;
+            });
+
+            socket.on('connect_error', (error) => {
+                console.error('Connection failed:', error);
+                statusDisplay.textContent = 'Connection Failed. Is the agent script running?';
+                statusDisplay.className = 'text-sm text-red-300';
+                submitButton.disabled = true;
+            });
+
+            socket.on('disconnect', () => {
+                console.log('Disconnected from the AI agent server.');
+                statusDisplay.textContent = 'Disconnected';
+                statusDisplay.className = 'text-sm text-blue-200';
+                submitButton.disabled = true;
+            });
+
+            // Listen for 'agent_response' events from the server.
+            socket.on('agent_response', (msg) => {
+                console.log('Received response from agent:', msg.data);
+                addMessageToChat('agent', msg.data);
+            });
+
+            //Form Submission Handler
+            messageForm.addEventListener('submit', (e) => {
+                e.preventDefault(); // Prevent the default form submission (page reload).
+                const message = messageInput.value.trim();
+                if (message && socket.connected) {
+                    addMessageToChat('user', message);
+                    socket.emit('user_message', { data: message });
+                    messageInput.value = ''; // Clear the input field.
+                }
+            });
+
+            //UI Helper Function
+            function addMessageToChat(sender, text) {
+                const bubble = document.createElement('div');
+                bubble.classList.add('chat-bubble');
+                bubble.classList.add(sender === 'user' ? 'user-bubble' : 'agent-bubble');
+                bubble.textContent = text;
+                chatWindow.appendChild(bubble);
+                // Automatically scroll to the latest message.
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }
+
+            // Initially disable the send button until a connection is established.
+            submitButton.disabled = true;
+        });
+    </script>
+
+</body>
+</html>
