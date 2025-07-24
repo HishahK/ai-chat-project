@@ -99,3 +99,77 @@ Follow these steps precisely to replicate the environment.
 3.  It will open in your default browser. The status should change from "Connecting..." to **"Connected"**.
 
 You can now send commands like `list all files here` or `what is my current directory?` and receive responses from the AI agent running securely inside your virtual machine.
+
+
+### Part 4: Automating the Agent on Startup
+
+To avoid having to run the agent manually every time the virtual machine is started, we can configure it to run automatically upon login. This method uses Ubuntu's built-in "Startup Applications" feature.
+
+This process involves creating a startup script which is then registered to run when the desktop starts.
+
+Step 1: Create the Startup Script
+This script will contain all the commands we would normally type manually in the terminal.
+
+Inside the Ubuntu VM, open a Terminal and create a new file named start_agent.sh (e.g., on the Desktop).
+
+nano ~/Desktop/start_agent.sh
+
+Copy and paste the following content into the file. Be sure to replace the placeholder API key and username (vboxuser) if necessary.
+
+#!/bin/bash
+
+# AI AGENT STARTUP SCRIPT 
+# This script will be executed in a new terminal upon startup.
+
+# 1. Wait for 10 seconds to allow the system (especially the network) to fully initialize. This part is a translated version of the script we utilized for documentation purposes
+echo "Waiting 10 seconds for the system to be ready..."
+sleep 10
+
+# 2. Set the Anthropic API Key.
+# Replace 'your-anthropic-api-key-goes-here' with your actual API key.
+echo "Setting API Key..."
+export ANTHROPIC_API_KEY='your-anthropic-api-key-goes-here'
+
+# 3. Navigate to the project directory (use the full path).
+# Replace 'vboxuser' with your username in the VM if it's different.
+echo "Changing to project directory..."
+cd /home/vboxuser/Desktop/
+
+# 4. Activate the Python virtual environment (use the full path).
+echo "Activating virtual environment..."
+source /home/vboxuser/Desktop/myenv/bin/activate
+
+# 5. Run the AI agent server.
+echo "Running AI Agent server..."
+python3 main.py
+
+# This command keeps the terminal window from closing immediately
+# if the script finishes or encounters an error, so we can see the messages.
+exec bash
+
+Save the file (Ctrl+X, then Y, then Enter).
+
+Step 2: Make the Script Executable
+We need to grant permission for this file to be run as a program.
+
+chmod +x ~/Desktop/start_agent.sh
+
+Step 3: Register with Startup Applications
+Open the Ubuntu applications menu and search for "Startup Applications".
+
+Click "Add" to create a new entry.
+
+Fill out the form as follows:
+
+Name: AI Agent Starter
+
+Command: gnome-terminal -- /home/vboxuser/Desktop/start_agent.sh
+
+This command tells the system to open a new terminal window and then run our script inside it. This is important for debugging and ensuring the script runs correctly.
+
+Comment: Starts the Python AI agent for the chat interface.
+
+Click "Save".
+
+Result
+Now, every time you restart the virtual machine and log in, a terminal window will appear automatically and run the AI agent server. After a few seconds, the frontend in your Windows browser will be able to connect without any manual intervention.
