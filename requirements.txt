@@ -1,0 +1,6 @@
+Flask<3
+Flask-SocketIO<6
+python-engineio<5
+python-socketio<6
+anthropic
+gunicorn
