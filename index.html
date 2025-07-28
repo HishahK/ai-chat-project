@@ -84,7 +84,7 @@
             const submitButton = messageForm.querySelector('button');
 
             //WebSocket Connection Initialization
-            const socket = io(agentUrl);
+            const socket = io(agentUrl, { transports: ['websocket'] });
 
             //WebSocket Event Listeners
             socket.on('connect', () => {
