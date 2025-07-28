@@ -72,12 +72,16 @@ Follow these steps precisely to replicate the environment.
     ```
     You will see `(myenv)` at the beginning of your terminal prompt.
 
-4.  **Install Python Dependencies:** With the environment active, install the required libraries.
+4.  **Install Python Dependencies:** With the environment active, install the required libraries, including a robust server engine like `eventlet` or `gevent`.
     ```bash
-    pip install "Flask<3" "Flask-SocketIO<6" "python-engineio<5" "python-socketio<6" anthropic
+    pip install "Flask<3" "Flask-SocketIO<6" "python-engineio<5" "python-socketio<6" anthropic eventlet
     ```
 
-5.  **Place the Code:** Create a `main.py` file and paste the backend Python code into it.
+5.  **Place and Modify the Code:** Create a `main.py` file. To ensure stability with tunneling, modify the SocketIO initialization to explicitly define the async mode:
+    ```python
+    # In main.py, change the SocketIO line to this:
+    socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
+    ```
 
 6.  **Set the API Key:** Set your Anthropic API key as an environment variable. **This must be done every time you open a new terminal.**
     ```bash
@@ -90,7 +94,7 @@ Follow these steps precisely to replicate the environment.
     ```
     The server is now running inside the VM and listening on port 5000.
 
-### Part 3: Running the Frontend (On the Windows Host)
+### Part 3: Running the Frontend (Locally on Windows Host)
 
 1.  Navigate to the `chat-interface-frontend` folder on your Windows machine.
 2.  Double-click the `chat.html` file.
@@ -146,3 +150,50 @@ To avoid manually starting the agent every time, we can make it run automaticall
     * **Restart** your Ubuntu virtual machine.
     * After you log in, wait about 15 seconds.
     * Open the `chat.html` file on your Windows host. It should now connect successfully without you needing to run anything manually in the VM.
+
+### Part 5: Deploying Frontend to the Cloud (Vercel) & Connecting via Tunnel
+
+This section explains how to make your chat interface a public web app while keeping the AI agent running securely in your local VirtualBox.
+
+1.  **Prepare the Frontend for Deployment:**
+    * Vercel requires an `index.html` file in the root directory. In your PowerShell on Windows, navigate to your project folder and run:
+        ```powershell
+        # Move chat.html to the root and rename it
+        mv chat-interface-frontend/chat.html .
+        mv chat.html index.html
+        ```
+
+2.  **Create a Tunnel with `ngrok`:**
+    * The `ngrok` service creates a secure public URL for your local server.
+    * In a **Command Prompt** on Windows, run `ngrok` with the `--host-header` flag to ensure connection stability:
+        ```cmd
+        ngrok http 5000 --host-header=rewrite
+        ```
+    * `ngrok` will display a public `Forwarding` URL (e.g., `https://<random-string>.ngrok-free.app`). **Copy this URL.**
+
+3.  **Update Frontend with Tunnel URL and Connection Fix:**
+    * Open your `index.html` file.
+    * Update the `agentUrl` constant with the `ngrok` URL you just copied.
+    * **Crucially**, add `{ transports: ['websocket'] }` to the `io()` function. This forces a direct WebSocket connection, which is more stable through tunnels.
+        ```javascript
+        // Replace with your active ngrok URL
+        const agentUrl = 'https://<random-string>.ngrok-free.app';
+
+        // Force a direct WebSocket connection for stability
+        const socket = io(agentUrl, { transports: ['websocket'] });
+        ```
+
+4.  **Push Changes to GitHub:**
+    * Save your changes and commit them to your repository:
+        ```bash
+        git add .
+        git commit -m "Feat: Prepare frontend for Vercel and tunneling"
+        git push origin main
+        ```
+
+5.  **Deploy to Vercel:**
+    * Go to [Vercel.com](https://vercel.com), create a new project, and import your `HishahK/ai-chat-project` repository.
+    * Vercel will auto-detect the settings. Click **"Deploy"**.
+    * Once finished, Vercel will give you a public URL for your web app.
+
+Now, your Vercel web app will connect to your VirtualBox agent through the `ngrok` tunnel, allowing anyone to use your chat interface from anywhere.
