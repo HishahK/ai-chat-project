@@ -111,9 +111,13 @@ To avoid manually starting the agent every time, we can make it run automaticall
     * Navigate to the directory containing your `main.py` and `myenv` folder.
     * Create a new script file: `nano start_agent.sh`
     * Paste the following content into the editor. **Crucially, replace the placeholder API key with your real one.**
+    * Note: script may crash upon Ubuntu startup not finishing when it attempts to run. Temporary solution is to add a waiting time for the script to run to allow the Ubuntu to finish startup (e.g. sleep 10)
 
         ```bash
         #!/bin/bash
+
+        # wait for a few seconds to allow Ubuntu to finish startup
+        sleep 10
 
         # Set the API Key
         export ANTHROPIC_API_KEY='your-real-anthropic-api-key-goes-here'
