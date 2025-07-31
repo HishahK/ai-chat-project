@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Agent Chat</title>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background-color: #f4f7f9; }
         #app-container { display: flex; flex: 1; overflow: hidden; }
@@ -46,9 +46,12 @@
     </div>
 
     <script>
-        // Change to your ngrok URL
         const BACKEND_URL = "https://f2fe94efa7c3.ngrok-free.app";
-        const socket = io(BACKEND_URL);
+        const socket = io(BACKEND_URL, {
+            transports: ['websocket', 'polling'],
+            upgrade: true,
+            rememberUpgrade: false
+        });
 
         const form = document.getElementById('form');
         const input = document.getElementById('input');
@@ -72,14 +75,12 @@
             }
         });
 
-        // Listen for messages from the AI agent
         socket.on('agent_response', function(msg) {
             addMessage('AI Agent', msg.data);
         });
 
-        // Listen for commands for sandbox view
         socket.on('sandbox_view', function(data) {
-            console.log("Menerima perintah sandbox:", data);
+            console.log("Sandbox command received:", data);
             if (data.status === 'success' && data.vnc_view_url) {
                 addMessage('AI Agent', 'Starting the virtual OS sandbox. The view will appear shortly.');
                 sandboxContainer.innerHTML = `<iframe src="${data.vnc_view_url}"></iframe>`;
@@ -90,11 +91,17 @@
 
         socket.on('connect', () => {
             console.log('Connected to backend server.');
+            addMessage('System', 'Connected to server successfully.');
         });
 
         socket.on('disconnect', () => {
             console.log('Disconnected from backend server.');
             addMessage('System', 'Connection lost. Please check the backend server.');
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+            addMessage('System', 'Failed to connect to server.');
         });
     </script>
 </body>
