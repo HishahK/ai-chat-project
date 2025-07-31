@@ -14,166 +14,159 @@ socketio = SocketIO(app, async_mode='gevent', cors_allowed_origins="*")
 
 api_key = os.environ.get("ANTHROPIC_API_KEY")
 if not api_key:
-    print("Kesalahan: Environment variable ANTHROPIC_API_KEY tidak ditemukan.")
-    print("Mohon jalankan: export ANTHROPIC_API_KEY='...' sebelum memulai.")
-    exit()
+   print("Error: Environment variable ANTHROPIC_API_KEY not found.")
+   print("Please run: export ANTHROPIC_API_KEY='...' before starting.")
+   exit()
 client = anthropic.Anthropic(api_key=api_key)
 
 VBOX_MANAGE_PATH = "C:\\Program Files\\Oracle\\VirtualBox\\VBoxManage.exe" if os.name == 'nt' else "VBoxManage"
 
 def run_bash_command(command):
-    print(f"TOOLBOX: Menjalankan perintah bash: {command}")
-    try:
-        result = subprocess.run(
-            command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30
-        )
-        return f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
-    except subprocess.CalledProcessError as e:
-        return f"Kesalahan saat menjalankan perintah:\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}"
-    except subprocess.TimeoutExpired:
-        return "Kesalahan: Waktu eksekusi perintah habis (30 detik)."
+   print(f"TOOLBOX: Running bash command: {command}")
+   try:
+       result = subprocess.run(
+           command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30
+       )
+       return f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+   except subprocess.CalledProcessError as e:
+       return f"Error running command:\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}"
+   except subprocess.TimeoutExpired:
+       return "Error: Command execution timeout (30 seconds)."
 
-def start_virtual_os_sandbox(vm_name="AI-Server-VM"):
-    print(f"TOOLBOX: Memulai sandbox untuk VM: {vm_name}")
-    HOST_PORT_VNC = 6080
+def start_virtual_os_sandbox(vm_name="UbuntuAIAgent"):
+   print(f"TOOLBOX: Starting sandbox for VM: {vm_name}")
+   HOST_PORT_VNC = 6080
 
-    try:
-        print(f"Mengecek status VM '{vm_name}'...")
-        info_result = subprocess.run([VBOX_MANAGE_PATH, "showvminfo", vm_name], capture_output=True, text=True)
-        if "running (since" not in info_result.stdout:
-            print(f"VM tidak berjalan. Memulai VM '{vm_name}' secara headless...")
-            subprocess.run([VBOX_MANAGE_PATH, "startvm", vm_name, "--type", "headless"], check=True)
-            time.sleep(15)
-        else:
-            print(f"VM '{vm_name}' sudah berjalan.")
+   try:
+       for tunnel in ngrok.get_tunnels():
+           if tunnel.config['addr'].endswith(str(HOST_PORT_VNC)):
+               print(f"Closing existing ngrok tunnel: {tunnel.public_url}")
+               ngrok.disconnect(tunnel.public_url)
 
-        for tunnel in ngrok.get_tunnels():
-            if tunnel.config['addr'].endswith(str(HOST_PORT_VNC)):
-                print(f"Menutup tunnel ngrok yang sudah ada: {tunnel.public_url}")
-                ngrok.disconnect(tunnel.public_url)
+       print(f"Opening ngrok tunnel to http://localhost:{HOST_PORT_VNC}...")
+       tunnel = ngrok.connect(HOST_PORT_VNC, "http")
+       public_url = tunnel.public_url
+       print(f"Ngrok tunnel created successfully: {public_url}")
 
-        print(f"Membuka tunnel ngrok ke http://localhost:{HOST_PORT_VNC}...")
-        tunnel = ngrok.connect(HOST_PORT_VNC, "http")
-        public_url = tunnel.public_url
-        print(f"Tunnel ngrok berhasil dibuat: {public_url}")
+       vnc_view_url = f"{public_url}/vnc.html?host={tunnel.public_url.split('//')[1].split(':')[0]}&port=443&encrypt=1&path=websockify"
+       
+       result = {
+           "status": "success", 
+           "message": f"Sandbox for {vm_name} started successfully.",
+           "vnc_view_url": vnc_view_url
+       }
+       
+       socketio.emit('sandbox_view', result)
+       
+       return json.dumps(result)
 
-        vnc_view_url = f"{public_url}/vnc.html?host={tunnel.public_url.split('//')[1]}&port=443&path=websockify"
-        
-        return json.dumps({
-            "status": "success",
-            "message": f"Sandbox untuk {vm_name} berhasil dimulai.",
-            "vnc_view_url": vnc_view_url
-        })
-
-    except FileNotFoundError:
-        return json.dumps({"status": "error", "message": f"Perintah VBoxManage tidak ditemukan di '{VBOX_MANAGE_PATH}'. Mohon periksa path."})
-    except subprocess.CalledProcessError as e:
-        return json.dumps({"status": "error", "message": f"Gagal menjalankan perintah VirtualBox: {e.stderr}"})
-    except Exception as e:
-        return json.dumps({"status": "error", "message": f"Terjadi kesalahan tak terduga: {str(e)}"})
+   except Exception as e:
+       error_result = {"status": "error", "message": f"Unexpected error occurred: {str(e)}"}
+       socketio.emit('sandbox_view', error_result)
+       return json.dumps(error_result)
 
 tools = [
-    {
-        "name": "run_bash_command",
-        "description": "Menjalankan perintah shell/bash di terminal. Berguna untuk navigasi file (ls, pwd), membaca file (cat), dll.",
-        "input_schema": {
-            "type": "object",
-            "properties": {"command": {"type": "string", "description": "Perintah bash yang valid untuk dijalankan."}},
-            "required": ["command"],
-        },
-    },
-    {
-        "name": "start_virtual_os_sandbox",
-        "description": "Memulai lingkungan OS Ubuntu virtual yang terisolasi (sandbox) dan menampilkannya di dalam chat. Gunakan tool ini ketika pengguna meminta untuk 'menjalankan OS virtual', 'membuka sandbox ubuntu', atau permintaan sejenisnya.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "vm_name": {
-                    "type": "string",
-                    "description": "Nama Virtual Machine yang akan dijalankan. Defaultnya adalah 'AI-Server-VM'.",
-                    "default": "AI-Server-VM"
-                }
-            },
-            "required": [],
-        },
-    }
+   {
+       "name": "run_bash_command",
+       "description": "Run shell/bash command in terminal. Useful for file navigation (ls, pwd), reading files (cat), etc.",
+       "input_schema": {
+           "type": "object",
+           "properties": {"command": {"type": "string", "description": "Valid bash command to execute."}},
+           "required": ["command"],
+       },
+   },
+   {
+       "name": "start_virtual_os_sandbox",
+       "description": "Start an isolated virtual Ubuntu OS environment (sandbox) and display it in the chat. Use this tool when user requests to 'run virtual OS', 'open ubuntu sandbox', or similar requests.",
+       "input_schema": {
+           "type": "object",
+           "properties": {
+               "vm_name": {
+                   "type": "string",
+                   "description": "Name of Virtual Machine to run. Default is 'UbuntuAIAgent'.",
+                   "default": "UbuntuAIAgent"
+               }
+           },
+           "required": [],
+       },
+   }
 ]
 
 def get_claude_response(user_message):
-    conversation = [{"role": "user", "content": user_message}]
+   conversation = [{"role": "user", "content": user_message}]
 
-    while True:
-        print("AI: Menghubungi Claude untuk langkah berikutnya...")
-        try:
-            response = client.messages.create(
-                model="claude-3-5-sonnet-20240620",
-                max_tokens=4096,
-                messages=conversation,
-                tools=tools,
-                tool_choice={"type": "auto"}
-            )
-        except Exception as e:
-            print(f"Error calling Claude API: {e}")
-            return "Terjadi kesalahan saat menghubungi AI."
+   while True:
+       print("AI: Contacting Claude for next step...")
+       try:
+           response = client.messages.create(
+               model="claude-3-5-sonnet-20240620",
+               max_tokens=4096,
+               messages=conversation,
+               tools=tools,
+               tool_choice={"type": "auto"}
+           )
+       except Exception as e:
+           print(f"Error calling Claude API: {e}")
+           return "An error occurred while contacting AI."
 
-        response_message = {"role": response.role, "content": response.content}
-        conversation.append(response_message)
+       response_message = {"role": response.role, "content": response.content}
+       conversation.append(response_message)
 
-        if response.stop_reason == "tool_use":
-            print("AI: Claude memutuskan untuk menggunakan sebuah tool.")
-            tool_use = next((block for block in response.content if block.type == 'tool_use'), None)
-            
-            if not tool_use:
-                return "Terjadi kesalahan saat mencoba menggunakan tool."
+       if response.stop_reason == "tool_use":
+           print("AI: Claude decided to use a tool.")
+           tool_use = next((block for block in response.content if block.type == 'tool_use'), None)
+           
+           if not tool_use:
+               return "An error occurred while trying to use tool."
 
-            tool_name = tool_use.name
-            tool_input = tool_use.input
-            
-            print(f"TOOLBOX: Memanggil tool '{tool_name}' dengan input: {tool_input}")
-            
-            tool_result = ""
-            try:
-                if tool_name == "run_bash_command":
-                    tool_result = run_bash_command(tool_input.get("command"))
-                elif tool_name == "start_virtual_os_sandbox":
-                    tool_result = start_virtual_os_sandbox(tool_input.get("vm_name", "AI-Server-VM"))
-                else:
-                    tool_result = f"Kesalahan: Tool '{tool_name}' tidak dikenal."
-            except Exception as e:
-                tool_result = f"Error menjalankan tool {tool_name}: {str(e)}"
-            
-            conversation.append({
-                "role": "user",
-                "content": [{"type": "tool_result", "tool_use_id": tool_use.id, "content": tool_result}]
-            })
-        else:
-            print("AI: Claude memberikan jawaban akhir.")
-            final_text = next((block.text for block in response.content if block.type == 'text'), "Saya tidak bisa memberikan respons saat ini.")
-            return final_text
+           tool_name = tool_use.name
+           tool_input = tool_use.input
+           
+           print(f"TOOLBOX: Calling tool '{tool_name}' with input: {tool_input}")
+           
+           tool_result = ""
+           try:
+               if tool_name == "run_bash_command":
+                   tool_result = run_bash_command(tool_input.get("command"))
+               elif tool_name == "start_virtual_os_sandbox":
+                   tool_result = start_virtual_os_sandbox(tool_input.get("vm_name", "UbuntuAIAgent"))
+               else:
+                   tool_result = f"Error: Tool '{tool_name}' not recognized."
+           except Exception as e:
+               tool_result = f"Error running tool {tool_name}: {str(e)}"
+           
+           conversation.append({
+               "role": "user",
+               "content": [{"type": "tool_result", "tool_use_id": tool_use.id, "content": tool_result}]
+           })
+       else:
+           print("AI: Claude providing final answer.")
+           final_text = next((block.text for block in response.content if block.type == 'text'), "I cannot provide a response at this time.")
+           return final_text
 
 @socketio.on('connect')
 def handle_connect():
-    print('Koneksi: Client terhubung ke server.')
+   print('Connection: Client connected to server.')
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print('Koneksi: Client terputus dari server.')
+   print('Connection: Client disconnected from server.')
 
 @socketio.on('user_message')
 def handle_user_message(json_data):
-    message = json_data.get('data', '')
-    print(f"Koneksi: Menerima pesan dari user: '{message}'")
-    try:
-        ai_response = get_claude_response(message)
-        if ai_response:
-            emit('agent_response', {'data': ai_response})
-        else:
-            emit('agent_response', {'data': "Maaf, terjadi kesalahan internal."})
-    except Exception as e:
-        print(f"Error handling message: {e}")
-        emit('agent_response', {'data': "Terjadi kesalahan saat memproses pesan."})
+   message = json_data.get('data', '')
+   print(f"Connection: Received message from user: '{message}'")
+   try:
+       ai_response = get_claude_response(message)
+       if ai_response:
+           emit('agent_response', {'data': ai_response})
+       else:
+           emit('agent_response', {'data': "Sorry, an internal error occurred."})
+   except Exception as e:
+       print(f"Error handling message: {e}")
+       emit('agent_response', {'data': "An error occurred while processing the message."})
 
 if __name__ == '__main__':
-    print("Server AI Agent 'Computer Use' telah dimulai.")
-    print("Mendengarkan koneksi di http://localhost:5000")
-    socketio.run(app, host='0.0.0.0', port=5000)
+   print("AI Agent 'Computer Use' server started.")
+   print("Listening for connections at http://localhost:5000")
+   socketio.run(app, host='0.0.0.0', port=5000)
