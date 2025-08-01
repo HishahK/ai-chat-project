@@ -2,7 +2,7 @@
 
 This project demonstrates how to connect a simple web-based chat interface on a host machine (Windows) to a powerful AI agent running in a completely separate, isolated virtual machine (Ubuntu on VirtualBox).
 
-The AI agent is not just a chatbot; it leverages the Anthropic Claude API to understand natural language commands, use "tools" to interact with its own operating system (e.g., run terminal commands), and can display a live virtual Ubuntu desktop environment directly in the browser through an integrated VNC-based sandbox.
+The AI agent is not just a chatbot; it leverages the Anthropic Claude API to understand natural language commands, use "tools" to interact with its own operating system (e.g., run terminal commands), and can display a live virtual Ubuntu desktop environment directly in the browser through an integrated VNC-based sandbox. This exploration is aimed at researching the logic behind "Agent Mode" developed by OpenAI.
 
 ## Architecture Overview
 
