@@ -6,229 +6,42 @@
     <title>AI Agent Chat</title>
     <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
     <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            margin: 0; 
-            display: flex; 
-            flex-direction: column; 
-            height: 100vh; 
-            background-color: #f4f7f9; 
-        }
-        
-        #app-container { 
-            display: flex; 
-            flex: 1; 
-            overflow: hidden; 
-        }
-        
-        #chat-container { 
-            flex: 1; 
-            display: flex; 
-            flex-direction: column; 
-            padding: 20px; 
-            transition: flex 0.3s ease; 
-        }
-        
-        #chat-container.chat-with-sandbox { 
-            flex: 0.6; 
-        }
-        
-        #messages { 
-            flex-grow: 1; 
-            overflow-y: auto; 
-            border: 1px solid #e0e0e0; 
-            border-radius: 8px; 
-            padding: 15px; 
-            background-color: #ffffff; 
-        }
-        
-        .message { 
-            margin-bottom: 15px; 
-            line-height: 1.5; 
-            animation: fadeIn 0.3s ease-in; 
-        }
-        
-        .message strong { 
-            color: #0056b3; 
-        }
-        
-        .message.system strong { 
-            color: #28a745; 
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        #form { 
-            display: flex; 
-            margin-top: 20px; 
-        }
-        
-        #input { 
-            flex-grow: 1; 
-            border: 1px solid #ccc; 
-            padding: 12px; 
-            border-radius: 20px; 
-            margin-right: 10px; 
-            font-size: 16px; 
-            outline: none; 
-        }
-        
-        #input:focus { 
-            border-color: #007bff; 
-            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25); 
-        }
-        
-        #form button { 
-            background: #007bff; 
-            color: white; 
-            border: none; 
-            padding: 12px 20px; 
-            border-radius: 20px; 
-            cursor: pointer; 
-            font-size: 16px; 
-            transition: background 0.2s ease; 
-        }
-        
-        #form button:hover { 
-            background: #0056b3; 
-        }
-        
-        #form button:disabled { 
-            background: #6c757d; 
-            cursor: not-allowed; 
-        }
-        
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background-color: #f4f7f9; }
+        #app-container { display: flex; flex: 1; overflow: hidden; }
+        #chat-container { flex: 1; display: flex; flex-direction: column; padding: 20px; }
+        #messages { flex-grow: 1; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; background-color: #ffffff; }
+        .message { margin-bottom: 15px; line-height: 1.5; }
+        .message strong { color: #0056b3; }
+        #form { display: flex; margin-top: 20px; }
+        #input { flex-grow: 1; border: 1px solid #ccc; padding: 12px; border-radius: 20px; margin-right: 10px; font-size: 16px; }
+        #form button { background: #007bff; color: white; border: none; padding: 12px 20px; border-radius: 20px; cursor: pointer; font-size: 16px; }
+        #form button:hover { background: #0056b3; }
         #sandbox-container {
             flex: 1;
             border-left: 2px solid #e0e0e0;
-            display: none;
-            flex-direction: column;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             background-color: #2c2c2c;
             color: #888;
-            position: relative;
-            transition: all 0.3s ease;
+            font-size: 1.2em;
         }
-        
-        #sandbox-container.active {
-            display: flex;
-        }
-        
-        .sandbox-header {
-            background: #1a1a1a;
-            color: white;
-            padding: 12px 15px;
-            font-size: 14px;
-            border-bottom: 1px solid #444;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .sandbox-title {
-            font-weight: 600;
-        }
-        
-        .sandbox-close {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            transition: background 0.2s ease;
-        }
-        
-        .sandbox-close:hover {
-            background: #c82333;
-        }
-        
-        .sandbox-content {
-            flex: 1;
-            position: relative;
-            background: #000;
-        }
-        
-        .sandbox-loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #888;
-            font-size: 16px;
-        }
-        
-        .status-indicator {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            z-index: 1000;
-            transition: all 0.3s ease;
-        }
-        
-        .status-connected {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .status-disconnected {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c2c7;
-        }
-        
-        .status-processing {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffecb5;
-        }
-        
-        .typing-indicator {
-            display: none;
-            padding: 10px;
-            font-style: italic;
-            color: #666;
-        }
-        
-        .typing-indicator.active {
-            display: block;
-        }
-        
-        .suggestions {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 10px;
-            margin-top: 10px;
-            font-size: 14px;
-            color: #6c757d;
-        }
+        #sandbox-container iframe { width: 100%; height: 100%; border: none; }
     </style>
 </head>
 <body>
-    <div class="status-indicator" id="status-indicator">Connecting...</div>
-    
     <div id="app-container">
         <div id="chat-container">
             <div id="messages">
-                <div class="message"><strong>AI Agent:</strong> Hello! I'm your AI assistant with computer use capabilities. I can help with terminal commands, web browsing, file management, and more.</div>
+                <div class="message"><strong>AI Agent:</strong> Hello! How can I help you today?</div>
             </div>
-            <div class="typing-indicator" id="typing-indicator">AI is thinking...</div>
             <form id="form" action="">
-                <input id="input" autocomplete="off" placeholder="Ask me to browse websites, open applications, or run commands..." />
-                <button type="submit" id="send-btn">Send</button>
+                <input id="input" autocomplete="off" placeholder="Type your message here..." />
+                <button>Send</button>
             </form>
         </div>
         <div id="sandbox-container">
-            <div class="sandbox-loading">Desktop environment will appear here when needed</div>
+            <span>Sandbox View</span>
         </div>
     </div>
 
@@ -244,128 +57,51 @@
         const input = document.getElementById('input');
         const messages = document.getElementById('messages');
         const sandboxContainer = document.getElementById('sandbox-container');
-        const statusIndicator = document.getElementById('status-indicator');
-        const typingIndicator = document.getElementById('typing-indicator');
-        const sendBtn = document.getElementById('send-btn');
 
-        function updateStatus(status, text) {
-            statusIndicator.className = `status-indicator status-${status}`;
-            statusIndicator.textContent = text;
-        }
-
-        function addMessage(sender, text, isSystem = false) {
+        function addMessage(sender, text) {
             const item = document.createElement('div');
             item.classList.add('message');
-            if (isSystem) item.classList.add('system');
             item.innerHTML = `<strong>${sender}:</strong> ${text}`;
             messages.appendChild(item);
             messages.scrollTop = messages.scrollHeight;
         }
 
-        function showTyping() {
-            typingIndicator.classList.add('active');
-            sendBtn.disabled = true;
-            sendBtn.textContent = 'Processing...';
-        }
-
-        function hideTyping() {
-            typingIndicator.classList.remove('active');
-            sendBtn.disabled = false;
-            sendBtn.textContent = 'Send';
-        }
-
-        function closeSandbox() {
-            sandboxContainer.classList.remove('active');
-            sandboxContainer.innerHTML = '<div class="sandbox-loading">Desktop environment will appear here when needed</div>';
-            document.getElementById('chat-container').classList.remove('chat-with-sandbox');
-        }
-
-        window.closeSandbox = closeSandbox;
-
         form.addEventListener('submit', function(e) {
             e.preventDefault();
-            if (input.value.trim()) {
+            if (input.value) {
                 addMessage('You', input.value);
-                showTyping();
                 socket.emit('user_message', { data: input.value });
                 input.value = '';
             }
         });
 
         socket.on('agent_response', function(msg) {
-            hideTyping();
             addMessage('AI Agent', msg.data);
         });
 
         socket.on('sandbox_view', function(data) {
             console.log("Sandbox command received:", data);
             if (data.status === 'success' && data.vnc_view_url) {
-                sandboxContainer.classList.add('active');
-                document.getElementById('chat-container').classList.add('chat-with-sandbox');
-                
-                sandboxContainer.innerHTML = `
-                    <div class="sandbox-header">
-                        <div class="sandbox-title">Virtual Desktop - Ubuntu Environment</div>
-                        <button class="sandbox-close" onclick="closeSandbox()">Close</button>
-                    </div>
-                    <div class="sandbox-content">
-                        <iframe src="${data.vnc_view_url}" style="width: 100%; height: 100%; border: none;"></iframe>
-                    </div>
-                `;
-                
-                addMessage('AI Agent', 'Desktop environment is now active and ready for visual tasks.', true);
+                addMessage('AI Agent', 'Starting the virtual OS sandbox. The view will appear shortly.');
+                sandboxContainer.innerHTML = `<iframe src="${data.vnc_view_url}"></iframe>`;
             } else {
-                addMessage('AI Agent', `Failed to start desktop: ${data.message}`);
+                addMessage('AI Agent', `Failed to start sandbox: ${data.message}`);
             }
         });
 
         socket.on('connect', () => {
             console.log('Connected to backend server.');
-            updateStatus('connected', 'Connected');
-            addMessage('System', 'Connected to server successfully.', true);
+            addMessage('System', 'Connected to server successfully.');
         });
 
         socket.on('disconnect', () => {
             console.log('Disconnected from backend server.');
-            updateStatus('disconnected', 'Disconnected');
-            addMessage('System', 'Connection lost. Attempting to reconnect...', true);
-            hideTyping();
+            addMessage('System', 'Connection lost. Please check the backend server.');
         });
 
         socket.on('connect_error', (error) => {
             console.error('Connection error:', error);
-            updateStatus('disconnected', 'Connection Failed');
-            addMessage('System', 'Failed to connect to server. Please check if the backend is running.', true);
-            hideTyping();
-        });
-
-        input.addEventListener('focus', function() {
-            const suggestions = [
-                'Try: "open firefox and browse to google.com"',
-                'Try: "show me the file manager"',
-                'Try: "install a text editor"',
-                'Try: "take a screenshot of the desktop"'
-            ];
-            
-            if (!document.querySelector('.suggestions')) {
-                const suggestionDiv = document.createElement('div');
-                suggestionDiv.className = 'suggestions';
-                suggestionDiv.innerHTML = '<strong>Quick suggestions:</strong><br>' + suggestions.join('<br>');
-                form.parentNode.insertBefore(suggestionDiv, form);
-                
-                setTimeout(() => {
-                    if (suggestionDiv.parentNode) {
-                        suggestionDiv.remove();
-                    }
-                }, 5000);
-            }
-        });
-
-        input.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                form.dispatchEvent(new Event('submit'));
-            }
+            addMessage('System', 'Failed to connect to server.');
         });
     </script>
 </body>
