@@ -4,3 +4,5 @@ python-engineio<5
 python-socketio<6
 anthropic
 gunicorn
+python-dotenv
+pyngrok

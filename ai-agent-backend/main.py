@@ -6,14 +6,17 @@ from flask import Flask, request
 from flask_socketio import SocketIO, emit
 import anthropic
 from pyngrok import ngrok, conf
+from dotenv import load_dotenv
 
-conf.get_default().auth_token = "30UGDKralWxXQyYwj4BVvKAsmqk_4gTnMCwJBUrdNi24SAs14"
+load_dotenv()
+
+conf.get_default().auth_token = os.getenv("NGROK_AUTH_TOKEN")
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'computer-agent-secret-v3'
+app.config['SECRET_KEY'] = os.getenv("FLASK_SECRET_KEY")
 socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*", logger=True, engineio_logger=True)
 
-api_key = os.environ.get("ANTHROPIC_API_KEY")
+api_key = os.getenv("ANTHROPIC_API_KEY")
 if not api_key:
    print("Error: Environment variable ANTHROPIC_API_KEY not found.")
    exit()
