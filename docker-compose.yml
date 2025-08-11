@@ -1,0 +1,16 @@
+
+version: '3.8'
+
+
+services:
+  
+  ubuntu-desktop:
+    
+    build: .
+    
+    container_name: virtual_os_ubuntu
+    
+    ports:
+      - "3389:3389"
+    
+    restart: unless-stopped
